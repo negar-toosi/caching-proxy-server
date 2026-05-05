@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+
+# ====== Color definitions for terminal output ======
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+# ====== Read commit message file ======
+INPUT_FILE=$1
+START_LINE=`head -n1 $INPUT_FILE`
+TYPES="feat|fix|docs|style|refactor|test|chore|init|rearrange|update"
+
+# ====== Full validation regex ======
+PATTERN="^($TYPES)\([a-z_-]+\): .+( #[0-9]+)+$"
+    
+# ====== 1. Validate commit type ======
+if ! [[ "$START_LINE" =~ ^($TYPES) ]]; then
+    echo -e "${RED}Invalid commit type${NC}"
+    echo -e "${YELLOW}Allowed: feat, fix, docs, style, refactor, test, chore, init, rearrange, update${NC}"
+    echo -e "${GREEN}example: feat([scop]): $START_LINE #[tag_number]${NC}"
+    exit 1
+fi
+
+# ====== 2. Validate scope ======
+if ! [[ "$START_LINE" =~ ^.+\([a-z_-]+\) ]]; then
+    echo -e "${RED}Write a scop in end of commit message${NC}"
+    echo -e "${GREEN}example: feat([scop]): [subject] #[tag_number]${NC}"
+    exit 1
+fi
+
+# ====== 3. Validate existence of issue tag ======
+if ! [[ "$START_LINE" =~ ^.+( #[0-9]+) ]]; then
+    echo -e "${RED}Write issue tag for your commit message${NC}"
+    echo -e "${GREEN}example: feat(scop): subject #tag_number${NC}"
+    exit 1
+fi
+
+# ====== 4. Validate full commit message format ======
+if ! [[ "$START_LINE" =~ $PATTERN ]]; then
+    echo -e "${RED}Bad commit message${NC}"
+    echo -e "${GREEN}example: feat(scop): subject #tag_number${NC}"
+    exit 1
+fi
+
+TAGS=$(echo "$START_LINE" | grep -oE '#[0-9]+')
+COUNT=$(echo "$TAGS" | wc -l)
+
+# ====== Limit number of tags (max 5) ======
+if [ "$COUNT" -gt 3 ]; then
+    echo -e "${RED}Too many issue tags (max 3 allowed)${NC}"
+    exit 1
+fi
+
+# ====== Prevent duplicate issue tags ======
+UNIQUE=$(echo "$TAGS" | sort -u | wc -l)
+
+if [ "$COUNT" -ne "$UNIQUE" ]; then
+    echo -e "${RED}Duplicate issue tags are not allowed${NC}"
+    exit 1
+fi
