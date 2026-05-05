@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+
+set -e
+
+echo "-> getting staged python files..."
+FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.py$' || true)
+
+if [ -z "$FILES" ]; then
+    echo "-> no python files staged"
+    exit 0
+fi
+
+echo "-> running ruff check --fix..."
+ruff check --fix $FILES
+
+echo "-> running ruff format..."
+ruff format $FILES
+
+echo "-> re-staging files..."
+git add $FILES
+
+echo "-> running final ruff check (strict)..."
+ruff check $FILES
