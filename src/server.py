@@ -3,56 +3,64 @@ import socket
 import os
 from asyncio import AbstractEventLoop
 
-from request import request_task
+from src.request import request_task
+from dotenv import load_dotenv
+import signal
+
+load_dotenv()
+
+
+class GracefulExit(SystemExit):
+    pass
+
+
+def shutdown():
+    raise GracefulExit
 
 
 class WebsocketServer:
-    _host = os.getenv("SERVER_HOST")
-    _port = os.getenv("SERVER_PORT")
-    _loop: AbstractEventLoop = asyncio.new_event_loop()
-    _tasks = []
+    def __init__(self, loop):
+        self._port = int(os.getenv("SERVER_PORT"))
+        self._host = os.getenv("SERVER_HOST")
+        self._loop: AbstractEventLoop = loop
+        self._tasks = []
 
-    @classmethod
-    async def _set_server(cls):
-        server_socket = socket.socket()
-        server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        server_socket.setblocking(False)
-        server_socket.bind((cls._host, cls._port))
-        server_socket.listen()
+    async def set_server(self):
 
-        await cls._connection_listener(server_socket)
+        try:
+            server_socket = socket.socket()
+            server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            server_socket.setblocking(False)
+            server_socket.bind((self._host, self._port))
 
-    @classmethod
-    async def _connection_listener(cls, server_socket: socket):
+            server_socket.listen()
+
+            for singname in {"SIGINT", "SIGTERM"}:
+                self._loop.add_signal_handler(getattr(signal, singname), shutdown)
+            await self._connection_listener(server_socket)
+        except Exception as ex:
+            raise ex
+
+    async def _connection_listener(self, server_socket: socket):
         while True:
-            connection, address = await cls._loop.sock_accept(server_socket)
+            connection, address = await self._loop.sock_accept(server_socket)
             connection.setblocking(False)
             print(f"Got a connection from address {address}")
-            task = asyncio.create_task(cls._task(connection))
-            cls._tasks.append(task)
+            task = asyncio.create_task(self._task(connection))
+            self._tasks.append(task)
 
-    @classmethod
-    async def _task(cls, connection: socket):
+    async def _task(self, connection: socket):
         try:
-            while data := await cls._loop.sock_recv(connection, 1024):
-                response = await request_task(data)
-                await cls._loop.sock_sendall(connection, response)
+            data = await self._loop.sock_recv(connection, 1024)
+            response = await request_task(data)
+            await self._loop.sock_sendall(connection, bytes(response, "utf-8"))
         finally:
             connection.close()
 
-    @classmethod
-    async def _close_tasks(cls):
-        waiters = [asyncio.wait_for(task, 2) for task in cls._tasks]
+    async def close_tasks(self):
+        waiters = [asyncio.wait_for(task, 2) for task in self._tasks]
         for task in waiters:
             try:
                 await task
             except asyncio.exceptions.TimeoutError:
                 pass
-
-    async def start_server(cls):
-        try:
-            cls._loop.run_until_complete(cls._set_server())
-        except Exception:
-            cls._loop.run_until_complete(cls._close_tasks())
-        finally:
-            cls._loop.close()
