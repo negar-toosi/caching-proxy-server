@@ -57,15 +57,18 @@ class WebsocketServer:
             self._tasks.append(task)
 
     async def _task(self, connection: socket):
+        host, port = connection.getpeername()
         try:
             data = await self._loop.sock_recv(connection, 1024)
-            logger.info(f"Get {data} data from connection {connection}")
+            logger.info(f"Get {data} data from connection {host, port}")
             response = await request_task(data)
             await self._loop.sock_sendall(connection, bytes(response, "utf-8"))
-            logger.info(f"send response for connection {connection.AddressInfo}")
+            logger.info(f"send response for connection {host, port}")
+        except Exception as ex:
+            logger.exception(ex)
         finally:
             connection.close()
-            logger.info(f"Close the connection {connection}")
+            logger.info(f"Close the connection {host, port}")
 
     async def close_tasks(self):
         waiters = [asyncio.wait_for(task, 2) for task in self._tasks]
