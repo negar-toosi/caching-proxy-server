@@ -5,7 +5,7 @@ import socket
 import os
 from asyncio import AbstractEventLoop
 
-from src.request import request_task
+from src.request import ClientRequest
 from dotenv import load_dotenv
 import signal
 
@@ -28,6 +28,7 @@ class WebsocketServer:
         self._host = os.getenv("SERVER_HOST")
         self._loop: AbstractEventLoop = loop
         self._tasks = []
+        self._client = ClientRequest()
 
     async def set_server(self):
 
@@ -60,8 +61,11 @@ class WebsocketServer:
         host, port = connection.getpeername()
         try:
             data = await self._loop.sock_recv(connection, 1024)
+            data = data.decode("utf-8").strip()
+            print(repr(data))
             logger.info(f"Get {data} data from connection {host, port}")
-            response = await request_task(data)
+            response = await self._client.validate_request(data)
+
             await self._loop.sock_sendall(connection, bytes(response, "utf-8"))
             logger.info(f"send response for connection {host, port}")
         except Exception as ex:
