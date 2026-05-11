@@ -62,13 +62,13 @@ class WebsocketServer:
         try:
             data = await self._loop.sock_recv(connection, 1024)
             data = data.decode("utf-8").strip()
-            print(repr(data))
             logger.info(f"Get {data} data from connection {host, port}")
-            response = await self._client.validate_request(data)
+            response = await self._client.fetch_content(data)
 
-            await self._loop.sock_sendall(connection, bytes(response, "utf-8"))
+            await self._loop.sock_sendall(connection, response)
             logger.info(f"send response for connection {host, port}")
         except Exception as ex:
+            await self._loop.sock_sendall(connection, bytes(str(ex), "utf-8"))
             logger.exception(ex)
         finally:
             connection.close()

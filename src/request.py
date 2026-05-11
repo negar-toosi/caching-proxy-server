@@ -1,14 +1,17 @@
-import re
-from typing import Optional
+import requests
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class ClientRequest:
-    async def validate_request(self, data: str) -> Optional[str]:
-        url_pattern = re.compile(
-            r"^https?://(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&\/=]*)$"
-        )
-        is_validate = url_pattern.match(data)
+    async def fetch_content(self, data: str):
+        try:
+            response = requests.get(data)
 
-        if is_validate:
-            return "true"
-        return "false"
+            if response.status_code == 200:
+                return response.content
+            return f"the status code of your request is {response.status_code}"
+        except requests.exceptions.MissingSchema as ex:
+            logger.exception(ex)
+            raise Exception(str(ex))
