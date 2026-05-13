@@ -5,7 +5,7 @@ import socket
 import os
 from asyncio import AbstractEventLoop
 
-from src.request import ClientRequest
+from server.request import ClientRequest
 from dotenv import load_dotenv
 import signal
 
