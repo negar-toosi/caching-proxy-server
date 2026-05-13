@@ -1,3 +1,4 @@
+-e git+ssh://git@github.com/negar-toosi/caching-proxy-server.git@5a23a31854ccba3855cd1364efc544af0cab4fea#egg=caching_proxy_server
 certifi==2026.4.22
 charset-normalizer==3.4.7
 idna==3.13
@@ -6,3 +7,4 @@ requests==2.33.1
 ruff==0.15.12
 setuptools==82.0.1
 urllib3==2.6.3
+websockets==16.0
